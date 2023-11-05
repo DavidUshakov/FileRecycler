@@ -58,7 +58,7 @@
     <ClInclude Include="DebugPrinter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="memory.h">
+    <ClInclude Include="Memory.h">
       <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>

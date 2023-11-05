@@ -4,7 +4,7 @@
 
 NTSTATUS RegistryUtils::GetCurrentUserHomePath(__inout const PUNICODE_STRING _outHomePath)
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 	RTL_QUERY_REGISTRY_TABLE queryTable[2];
 	RtlZeroMemory(queryTable, sizeof(queryTable));
 
@@ -17,11 +17,10 @@ NTSTATUS RegistryUtils::GetCurrentUserHomePath(__inout const PUNICODE_STRING _ou
 	queryTable[0].DefaultType = (REG_SZ << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
 	queryTable[0].Name = L"HOMEPATH";
 	queryTable[0].EntryContext = _outHomePath;
-	//DbgBreakPoint();
 	status = RtlQueryRegistryValues(RTL_REGISTRY_USER, (PCWSTR)L"\\Volatile Environment", queryTable, 0, 0);
 	if (!NT_SUCCESS(status))
 	{
-		DbgPrint("Reg False");
+		DbgPrint("RegistryUtils:GetCurrentUserHomePath failed to query registry values status = % 08x", status);
 		return status;
 
 	}

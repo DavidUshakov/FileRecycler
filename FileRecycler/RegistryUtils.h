@@ -2,7 +2,7 @@
 #include <wdm.h>
 #define MAX_PATH 260
 
-
+// RegistryUtils is a class for working with registry. 
 class RegistryUtils 
 {
 public:

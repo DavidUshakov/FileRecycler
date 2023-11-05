@@ -5,7 +5,7 @@ static PathManager* g_pPathManager{ 0 };
 LONG isPathManagerSet{ 0 };
 PathManager::PathManager() : m_registryUtils(), m_appDataRoamingBuffer{ 0 }, m_appDataRoamingRecycleBinBuffer{ 0 }
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 	status = InitializeFilePathes();
 	if (!NT_SUCCESS(status))
 	{
@@ -14,7 +14,23 @@ PathManager::PathManager() : m_registryUtils(), m_appDataRoamingBuffer{ 0 }, m_a
 				status));
 	}
 
-	status = CreateRecycleBinFolder();
+	status = CreateRecycleBinFolderByUser();
+	if (!NT_SUCCESS(status))
+	{
+		PT_DBG_PRINT(PTDBG_TRACE_OPERATION_STATUS,
+			("PathManager!PathManager: CreateRecycleBinFolder Failed, status=%08x\n",
+				status));
+	}
+
+	status = CreateRecycleBinFolderInC();
+	if (!NT_SUCCESS(status))
+	{
+		PT_DBG_PRINT(PTDBG_TRACE_OPERATION_STATUS,
+			("PathManager!PathManager: CreateRecycleBinFolder Failed, status=%08x\n",
+				status));
+	}
+
+	status = CreateRecycleBinFolderInC();
 	if (!NT_SUCCESS(status))
 	{
 		PT_DBG_PRINT(PTDBG_TRACE_OPERATION_STATUS,
@@ -55,7 +71,7 @@ void PathManager::Delete()
 
 NTSTATUS PathManager::GenerateReplacedFolderPath(__in const PUNICODE_STRING _folder, __inout PUNICODE_STRING _outPath)
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 
 	if (!g_pPathManager)
 	{
@@ -96,7 +112,7 @@ ErrorRtlAppendUnicodeToString:
 
 NTSTATUS PathManager::GenerateRemovedFilePath(__in const PUNICODE_STRING _fileName, __inout PUNICODE_STRING _outPath)
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 
 	if (!g_pPathManager)
 	{
@@ -166,7 +182,7 @@ const PWCH PathManager::GetRecycleBinVolumeFolderPath() const
 
 NTSTATUS PathManager::InitializeFilePathes()
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 
 	// Generating pathes
 	WCHAR currentUserHomePathBuffer[MAX_PATH] = { 0 };
@@ -236,9 +252,9 @@ RtlAppendUnicodeToStringError:
 
 }
 
-NTSTATUS PathManager::CreateRecycleBinFolder()
+NTSTATUS PathManager::CreateRecycleBinFolderByUser()
 {
-	ULONG status = STATUS_SUCCESS;
+	LONG status= STATUS_SUCCESS;
 
 	UNICODE_STRING appDataRoamingRecycleBin;
 	RtlInitUnicodeString(&appDataRoamingRecycleBin, m_appDataRoamingRecycleBinBuffer);
@@ -278,6 +294,72 @@ NTSTATUS PathManager::CreateRecycleBinFolder()
 	{
 		status = STATUS_SUCCESS;
 	}
+
+	return status;
+}
+
+NTSTATUS PathManager::CreateRecycleBinFolderInC()
+{
+	LONG status = STATUS_SUCCESS;
+	char buffer[MAX_PATH] = { 0 };
+	UNICODE_STRING FullRecycleBinPath;
+	FullRecycleBinPath.Buffer = PWCH(&buffer);
+	FullRecycleBinPath.Length = 0;
+	FullRecycleBinPath.MaximumLength = MAX_PATH;
+
+	status = RtlAppendUnicodeToString(&FullRecycleBinPath, GetRecycleBinVolumePath());
+	if (!NT_SUCCESS(status))
+	{
+		goto RtlAppendUnicodeToStringError;
+	}
+	status = RtlAppendUnicodeToString(&FullRecycleBinPath, GetRecycleBinPath());
+	if (!NT_SUCCESS(status))
+	{
+		goto RtlAppendUnicodeToStringError;
+	}
+
+	HANDLE fileHandle;
+	IO_STATUS_BLOCK iosb;
+	OBJECT_ATTRIBUTES ObjectAttributes;
+
+	InitializeObjectAttributes(
+		&ObjectAttributes,
+		&FullRecycleBinPath,
+		(OBJ_CASE_INSENSITIVE |
+			OBJ_KERNEL_HANDLE),
+		NULL,
+		NULL
+	);
+
+	status = ZwCreateFile(
+		&fileHandle,
+		GENERIC_READ | SYNCHRONIZE,
+		&ObjectAttributes,
+		&iosb,
+		0,
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_WRITE | FILE_SHARE_READ,
+		FILE_CREATE,
+		FILE_DIRECTORY_FILE,
+		NULL,
+		0
+	);
+
+	if (NT_SUCCESS(status))
+	{
+		ZwClose(fileHandle);
+	}
+	else if (status == STATUS_OBJECT_NAME_COLLISION)
+	{
+		status = STATUS_SUCCESS;
+	}
+
+	return status;
+
+RtlAppendUnicodeToStringError:
+	PT_DBG_PRINT(PTDBG_TRACE_OPERATION_STATUS,
+		("PathManager!InitializeFilePathes: RtlAppendUnicodeToString Failed, status=%08x\n",
+			status));
 
 	return status;
 }

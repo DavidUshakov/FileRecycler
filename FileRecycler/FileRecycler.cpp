@@ -64,22 +64,6 @@ FileRecyclerInstanceQueryTeardown (
     _In_ FLT_INSTANCE_QUERY_TEARDOWN_FLAGS Flags
     );
 
-FLT_PREOP_CALLBACK_STATUS
-FileRecyclerPreOperation (
-    _Inout_ PFLT_CALLBACK_DATA Data,
-    _In_ PCFLT_RELATED_OBJECTS FltObjects,
-    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
-    );
-
-
-FLT_PREOP_CALLBACK_STATUS
-FileRecyclerPreOperationNoPostOperation (
-    _Inout_ PFLT_CALLBACK_DATA Data,
-    _In_ PCFLT_RELATED_OBJECTS FltObjects,
-    _Flt_CompletionContext_Outptr_ PVOID *CompletionContext
-    );
-
-
 
 EXTERN_C_END
 
@@ -104,22 +88,13 @@ CONST FLT_OPERATION_REGISTRATION Callbacks[] = {
     { IRP_MJ_CREATE,
       0,
       IrpCreatePreOperation,
-      IrpCreatePostOperation },/*
+      IrpCreatePostOperation },
 
-    { IRP_MJ_CLOSE,
-      0,
-      IrpClosePreOperation,
-      IrpClosePostOperation },
-      */
     { IRP_MJ_SET_INFORMATION,
       0,
       IrpSetInformationFilePreOperation,
       IrpSetFileInformationPostOperation },
       
-    /*{ IRP_MJ_CLEANUP,
-      0,
-      IrpCleanupPreOperation,
-      0 },*/
     { IRP_MJ_OPERATION_END }
 };
 
@@ -309,8 +284,7 @@ Return Value:
 /*************************************************************************
     MiniFilter initialization and unload routines.
 *************************************************************************/
-UNICODE_STRING dev;
-PDEVICE_OBJECT pDeviceObject;
+UNICODE_STRING g_devicePath;
 // TODO: implement creation in DriverEntry and removing in FileRecyclerUnload for PathManager
 NTSTATUS
 DriverEntry (
@@ -370,16 +344,7 @@ Return Value:
 
         }
 
-        RtlInitUnicodeString(&dev, L"\\Device\\FileRecycler");
-        status = IoCreateDevice(DriverObject, 0, &dev, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &pDeviceObject);
-        if (!NT_SUCCESS(status))
-        {
-            PT_DBG_PRINT(PTDBG_TRACE_OPERATION_STATUS,
-                ("FileRecycler!FileRecyclerPreOperation: FltRequestOperationStatusCallback Failed, status=%08x\n",
-                    status));
-        }
 
-        pDeviceObject = DriverObject->DeviceObject;
 
     }
 
@@ -419,63 +384,6 @@ Return Value:
 
     FltUnregisterFilter( gFilterHandle );
 
-    //IoDeleteSymbolicLink(&dos);
-    IoDeleteDevice(pDeviceObject);
     PathManager::Delete();
     return STATUS_SUCCESS;
-}
-
-
-
-
-
-
-BOOLEAN
-FileRecyclerDoRequestOperationStatus(
-    _In_ PFLT_CALLBACK_DATA Data
-    )
-/*++
-
-Routine Description:
-
-    This identifies those operations we want the operation status for.  These
-    are typically operations that return STATUS_PENDING as a normal completion
-    status.
-
-Arguments:
-
-Return Value:
-
-    TRUE - If we want the operation status
-    FALSE - If we don't
-
---*/
-{
-    PFLT_IO_PARAMETER_BLOCK iopb = Data->Iopb;
-
-    //
-    //  return boolean state based on which operations we are interested in
-    //
-
-    return (BOOLEAN)
-
-            //
-            //  Check for oplock operations
-            //
-
-             (((iopb->MajorFunction == IRP_MJ_FILE_SYSTEM_CONTROL) &&
-               ((iopb->Parameters.FileSystemControl.Common.FsControlCode == FSCTL_REQUEST_FILTER_OPLOCK)  ||
-                (iopb->Parameters.FileSystemControl.Common.FsControlCode == FSCTL_REQUEST_BATCH_OPLOCK)   ||
-                (iopb->Parameters.FileSystemControl.Common.FsControlCode == FSCTL_REQUEST_OPLOCK_LEVEL_1) ||
-                (iopb->Parameters.FileSystemControl.Common.FsControlCode == FSCTL_REQUEST_OPLOCK_LEVEL_2)))
-
-              ||
-
-              //
-              //    Check for directy change notification
-              //
-
-              ((iopb->MajorFunction == IRP_MJ_DIRECTORY_CONTROL) &&
-               (iopb->MinorFunction == IRP_MN_NOTIFY_CHANGE_DIRECTORY))
-             );
 }

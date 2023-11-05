@@ -195,7 +195,7 @@
   <ItemGroup>
     <ClInclude Include="DebugPrinter.h" />
     <ClInclude Include="IRPCallback.h" />
-    <ClInclude Include="memory.h" />
+    <ClInclude Include="Memory.h" />
     <ClInclude Include="PathManager.h" />
     <ClInclude Include="RegistryUtils.h" />
   </ItemGroup>

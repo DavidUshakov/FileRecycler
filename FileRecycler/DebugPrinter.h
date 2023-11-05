@@ -1,4 +1,8 @@
 #pragma once
+/*
+    In this file is some general code for debug print.
+
+*/
 #include <fltKernel.h>
 #include <dontuse.h>
 
